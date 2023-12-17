@@ -1,0 +1,214 @@
+<!-- index.ejs -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles.css">
+  <title>Money Tracker</title>
+
+  <!-- Add Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <h1>Money Tracker</h1>
+
+  <form id="transactionForm">
+    <label for="description">Description:</label>
+    <input type="text" id="description" name="description" required>
+
+    <label for="amount">Amount:</label>
+    <input type="number" id="amount" name="amount" required>
+
+    <label for="type">Type:</label>
+    <select id="type" name="type" required>
+      <option value="expense">Expense</option>
+      <option value="income">Income</option>
+    </select>
+
+    <button type="button" onclick="addTransaction()">Add Transaction</button>
+  </form>
+
+  <div>
+    <h2>Transactions</h2>
+
+    <ul id="transactionList">
+      <!-- Transaction list will be dynamically populated -->
+    </ul>
+  </div>
+
+  <div>
+    <h2>Total</h2>
+    <p>Income: <span id="totalIncome">0.00</span></p>
+    <p>Expense: <span id="totalExpense">0.00</span></p>
+  </div>
+
+  <!-- Add a canvas for the bar chart -->
+  <canvas id="incomeExpenseChart" width="400" height="200"></canvas>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var transactions = []; // Initialize an empty array to store transactions
+      var totalIncome = 0; // Initialize total income
+      var totalExpense = 0; // Initialize total expense
+
+      // Function to add a transaction and update the chart
+      window.addTransaction = function () {
+        var description = document.getElementById('description').value;
+        var amount = parseFloat(document.getElementById('amount').value);
+        var type = document.getElementById('type').value;
+
+        // Validate input
+        if (!description || isNaN(amount) || amount <= 0) {
+          alert('Please enter valid transaction details.');
+          return;
+        }
+
+        // Check if a transaction with the same description already exists
+        var existingTransactionIndex = transactions.findIndex(transaction => transaction.description === description && transaction.type === type);
+
+        if (existingTransactionIndex !== -1) {
+          // Subtract the existing transaction amount from the total
+          if (type === 'income') {
+            totalIncome -= transactions[existingTransactionIndex].amount;
+          } else {
+            totalExpense -= transactions[existingTransactionIndex].amount;
+          }
+
+          // Update the existing transaction
+          transactions[existingTransactionIndex].amount += amount;
+        } else {
+          // Create a new transaction object
+          var newTransaction = {
+            description: description,
+            amount: amount,
+            type: type
+          };
+
+          // Add the new transaction to the list
+          transactions.push(newTransaction);
+        }
+
+        // Update total based on the type of transaction
+        if (type === 'income') {
+          totalIncome += amount;
+        } else {
+          totalExpense += amount;
+        }
+
+        // Update the chart
+        updateChart();
+
+        // Update the total display
+        updateTotal();
+
+        // Optionally, clear the form fields
+        document.getElementById('description').value = '';
+        document.getElementById('amount').value = '';
+      };
+
+      // Function to update the chart
+      function updateChart() {
+        var ctx = document.getElementById('incomeExpenseChart').getContext('2d');
+
+        // Destroy previous chart instance before creating a new one
+        if (window.myBarChart) {
+          window.myBarChart.destroy();
+        }
+
+        // Get unique descriptions for chart labels
+        var uniqueLabels = [...new Set(transactions.map(transaction => transaction.description))];
+
+        var incomeData = uniqueLabels.map(label => {
+          var incomeTransactions = transactions.filter(transaction => transaction.type === 'income' && transaction.description === label);
+          return incomeTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+        });
+
+        var expenseData = uniqueLabels.map(label => {
+          var expenseTransactions = transactions.filter(transaction => transaction.type === 'expense' && transaction.description === label);
+          return expenseTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+        });
+
+        var data = {
+          labels: uniqueLabels,
+          datasets: [{
+            label: 'Income',
+            backgroundColor: 'green',
+            data: incomeData
+          }, {
+            label: 'Expense',
+            backgroundColor: 'red',
+            data: expenseData
+          }]
+        };
+
+        var options = {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        };
+
+        var myBarChart = new Chart(ctx, {
+          type: 'bar',
+          data: data,
+          options: options
+        });
+
+     
+        window.myBarChart = myBarChart;
+
+        
+        var transactionList = document.getElementById('transactionList');
+        transactionList.innerHTML = '';
+        transactions.forEach((transaction, index) => {
+          var listItem = document.createElement('li');
+          listItem.textContent = `${transaction.description} - ${transaction.amount} (${transaction.type})`;
+
+          
+          var deleteButton = document.createElement('button');
+          deleteButton.textContent = 'Delete';
+          deleteButton.onclick = function () {
+            deleteTransaction(index);
+          };
+
+          listItem.appendChild(deleteButton);
+          transactionList.appendChild(listItem);
+        });
+      }
+
+    
+      function deleteTransaction(index) {
+        var deletedTransaction = transactions.splice(index, 1)[0];
+
+      
+        if (deletedTransaction.type === 'income') {
+          totalIncome -= deletedTransaction.amount;
+        } else {
+          totalExpense -= deletedTransaction.amount;
+        }
+
+       
+        updateChart();
+
+       
+        updateTotal();
+      }
+
+     
+      function updateTotal() {
+        document.getElementById('totalIncome').textContent = totalIncome.toFixed(2);
+        document.getElementById('totalExpense').textContent = totalExpense.toFixed(2);
+      }
+    });
+  </script>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+</body>
+
+</html>
